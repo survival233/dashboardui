@@ -1,0 +1,1 @@
+{\n  "builds": [\n    {\n      "src": "loan-analytics-react/package.json",\n      "use": "@vercel/static-build",\n      "config": {\n        "distDir": "dist",\n        "rootDirectory": "loan-analytics-react",\n        "buildCommand": "npm run build"\n      }\n    }\n  ]\n}
