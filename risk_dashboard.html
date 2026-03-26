@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Risk Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;line-height:1.5}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#9ca3af}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:calc(200px + 100%) 0}}
+.animate-in{animation:fadeIn 0.5s ease-out forwards}
+.modal-in{animation:slideIn 0.2s ease-out forwards}
+.skeleton{background:linear-gradient(90deg,#f3f4f6 0px,#e5e7eb 40px,#f3f4f6 80px);background-size:200px 100%;animation:shimmer 1.5s infinite}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
+const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Area, AreaChart, ComposedChart, Legend, ScatterChart, Scatter, ZAxis } = Recharts;
+
+// ─── Data ─────────────────────────────────────────────────────────────────
+const DATA = {"kpis":{"totalLoans":316955,"totalVolume":3988551700,"avgIntRate":11.86,"defaultRate":15.78,"avgReturn":4.95,"avgLoan":12584,"chargedOff":50022,"fullyPaid":266933},"byState":[{"state":"CA","count":43673,"volume":578809775,"defaultRate":16.5,"avgReturn":3.92},{"state":"TX","count":27151,"volume":357405325,"defaultRate":15.9,"avgReturn":4.91},{"state":"NY","count":26806,"volume":340783375,"defaultRate":16.9,"avgReturn":5.1},{"state":"FL","count":23895,"volume":288566700,"defaultRate":17.6,"avgReturn":3.94},{"state":"IL","count":12990,"volume":168992500,"defaultRate":14.1,"avgReturn":6.54},{"state":"NJ","count":11577,"volume":154622100,"defaultRate":16.1,"avgReturn":5.0},{"state":"OH","count":10704,"volume":124206375,"defaultRate":15.7,"avgReturn":4.73},{"state":"GA","count":10372,"volume":132227750,"defaultRate":14.7,"avgReturn":6.17},{"state":"PA","count":10066,"volume":120110750,"defaultRate":15.7,"avgReturn":5.17},{"state":"NC","count":8691,"volume":103946800,"defaultRate":16.1,"avgReturn":4.43},{"state":"MI","count":8539,"volume":100122200,"defaultRate":15.8,"avgReturn":4.99},{"state":"VA","count":8199,"volume":110524950,"defaultRate":15.6,"avgReturn":5.13},{"state":"AZ","count":7703,"volume":93952350,"defaultRate":15.6,"avgReturn":4.29},{"state":"MA","count":7175,"volume":96950575,"defaultRate":15.1,"avgReturn":4.85},{"state":"MD","count":6964,"volume":91104875,"defaultRate":16.9,"avgReturn":4.58},{"state":"CO","count":6334,"volume":78501725,"defaultRate":12.9,"avgReturn":5.73},{"state":"WA","count":6177,"volume":81371225,"defaultRate":13.3,"avgReturn":6.44},{"state":"MN","count":5477,"volume":66102950,"defaultRate":15.7,"avgReturn":4.47},{"state":"IN","count":5341,"volume":63047150,"defaultRate":15.8,"avgReturn":4.88},{"state":"TN","count":5227,"volume":63148250,"defaultRate":15.7,"avgReturn":5.03}],"byPurpose":[{"purpose":"debt_consolidation","count":173917,"volume":2347946275,"defaultRate":16.7,"avgReturn":4.63,"avgRate":12.12},{"purpose":"credit_card","count":67994,"volume":905648525,"defaultRate":13.7,"avgReturn":5.29,"avgRate":10.59},{"purpose":"other","count":24030,"volume":202550200,"defaultRate":16.1,"avgReturn":6.23,"avgRate":13.21},{"purpose":"home_improvement","count":22999,"volume":276283600,"defaultRate":13.6,"avgReturn":5.25,"avgRate":11.31},{"purpose":"major_purchase","count":8144,"volume":80656975,"defaultRate":14.4,"avgReturn":4.94,"avgRate":11.58},{"purpose":"medical","count":4490,"volume":33998800,"defaultRate":17.9,"avgReturn":4.1,"avgRate":12.53},{"purpose":"car","count":4021,"volume":31673100,"defaultRate":12.8,"avgReturn":6.44,"avgRate":11.33},{"purpose":"small_business","count":3738,"volume":52181575,"defaultRate":22.9,"avgReturn":3.39,"avgRate":14.28},{"purpose":"vacation","count":3035,"volume":16787875,"defaultRate":16.6,"avgReturn":5.42,"avgRate":12.65},{"purpose":"moving","count":2836,"volume":18822225,"defaultRate":18.6,"avgReturn":4.67,"avgRate":13.93},{"purpose":"house","count":1493,"volume":19771350,"defaultRate":19.8,"avgReturn":3.86,"avgRate":14.71},{"purpose":"renewable_energy","count":257,"volume":2216200,"defaultRate":16.3,"avgReturn":5.76,"avgRate":14.07}],"byGrade":[{"grade":"A","count":66004,"volume":909978500,"defaultRate":5.6,"avgReturn":5.82,"avgRate":6.85,"defaults":3726},{"grade":"B","count":112597,"volume":1343282875,"defaultRate":12.5,"avgReturn":5.88,"avgRate":10.25,"defaults":14052},{"grade":"C","count":90119,"volume":1104439000,"defaultRate":19.7,"avgReturn":4.66,"avgRate":13.71,"defaults":17780},{"grade":"D","count":35769,"volume":472823475,"defaultRate":27.6,"avgReturn":2.97,"avgRate":18.1,"defaults":9890},{"grade":"E","count":9664,"volume":123936875,"defaultRate":35.0,"avgReturn":0.54,"avgRate":21.43,"defaults":3387},{"grade":"F","count":2290,"volume":27941075,"defaultRate":40.6,"avgReturn":-1.61,"avgRate":22.08,"defaults":929},{"grade":"G","count":512,"volume":6149900,"defaultRate":50.4,"avgReturn":-8.7,"avgRate":22.0,"defaults":258}],"byMonth":[{"month":"2016-01","count":22370,"volume":307453950,"defaultRate":14.5,"avgReturn":4.92,"avgRate":10.87,"defaults":3246,"earlyDefaultRate":5.6},{"month":"2016-02","count":28094,"volume":379963775,"defaultRate":15.3,"avgReturn":4.88,"avgRate":11.27,"defaults":4312,"earlyDefaultRate":5.7},{"month":"2016-03","count":43776,"volume":572235975,"defaultRate":16.1,"avgReturn":4.36,"avgRate":11.37,"defaults":7036,"earlyDefaultRate":6.2},{"month":"2016-04","count":27607,"volume":354490425,"defaultRate":16.5,"avgReturn":4.31,"avgRate":11.51,"defaults":4554,"earlyDefaultRate":6.5},{"month":"2016-05","count":21354,"volume":272028800,"defaultRate":17.1,"avgReturn":4.05,"avgRate":11.77,"defaults":3649,"earlyDefaultRate":6.8},{"month":"2016-06","count":24433,"volume":313147325,"defaultRate":14.6,"avgReturn":4.83,"avgRate":11.18,"defaults":3568,"earlyDefaultRate":5.7},{"month":"2016-07","count":25274,"volume":302254900,"defaultRate":16.9,"avgReturn":4.83,"avgRate":12.47,"defaults":4268,"earlyDefaultRate":6.7},{"month":"2016-08","count":27021,"volume":329441225,"defaultRate":16.7,"avgReturn":4.99,"avgRate":12.42,"defaults":4501,"earlyDefaultRate":6.6},{"month":"2016-09","count":20968,"volume":251654375,"defaultRate":16.0,"avgReturn":5.43,"avgRate":12.6,"defaults":3359,"earlyDefaultRate":6.5},{"month":"2016-10","count":24030,"volume":286410475,"defaultRate":14.4,"avgReturn":6.03,"avgRate":12.31,"defaults":3471,"earlyDefaultRate":5.9},{"month":"2016-11","count":25180,"volume":300788225,"defaultRate":15.2,"avgReturn":5.8,"avgRate":12.34,"defaults":3823,"earlyDefaultRate":6.0},{"month":"2016-12","count":26848,"volume":318682250,"defaultRate":15.8,"avgReturn":5.46,"avgRate":12.55,"defaults":4235,"earlyDefaultRate":6.5}],"byHomeOwnership":[{"ownership":"MORTGAGE","count":144046,"volume":2009489575,"defaultRate":13.0,"avgReturn":5.77},{"ownership":"RENT","count":132398,"volume":1482038575,"defaultRate":18.8,"avgReturn":4.07},{"ownership":"OWN","count":40422,"volume":496021725,"defaultRate":16.0,"avgReturn":4.94},{"ownership":"ANY","count":89,"volume":1001825,"defaultRate":16.9,"avgReturn":4.02}],"byVerification":[{"status":"Verified","count":89851,"volume":1238488225,"defaultRate":20.0},{"status":"Source Verified","count":138516,"volume":1668136200,"defaultRate":16.0},{"status":"Not Verified","count":88588,"volume":1081927275,"defaultRate":11.1}],"byEmpLength":[{"empLength":"< 1 year","count":24220,"defaultRate":16.1,"avgReturn":4.6},{"empLength":"1 year","count":21824,"defaultRate":16.5,"avgReturn":4.52},{"empLength":"2 years","count":29631,"defaultRate":15.9,"avgReturn":5.01},{"empLength":"3 years","count":25975,"defaultRate":16.3,"avgReturn":4.75},{"empLength":"4 years","count":18964,"defaultRate":15.7,"avgReturn":5.24},{"empLength":"5 years","count":19403,"defaultRate":15.7,"avgReturn":5.26},{"empLength":"6 years","count":13698,"defaultRate":15.0,"avgReturn":5.58},{"empLength":"7 years","count":10250,"defaultRate":15.7,"avgReturn":4.86},{"empLength":"8 years","count":13407,"defaultRate":15.3,"avgReturn":5.04},{"empLength":"9 years","count":12022,"defaultRate":15.2,"avgReturn":5.12},{"empLength":"10+ years","count":104803,"defaultRate":14.2,"avgReturn":5.63},{"empLength":"Unknown","count":22758,"defaultRate":22.5,"avgReturn":1.82}],"byFico":[{"range":"650-699","count":197358,"defaultRate":18.8,"avgReturn":4.53,"avgRate":12.95},{"range":"700-749","count":95533,"defaultRate":12.0,"avgReturn":5.66,"avgRate":10.54},{"range":"750-799","count":24064,"defaultRate":6.3,"avgReturn":5.66,"avgRate":8.16}],"byDti":[{"range":"0-10","count":57042,"defaultRate":12.2},{"range":"10-20","count":130288,"defaultRate":14.2},{"range":"20-30","count":96880,"defaultRate":17.9},{"range":"30-40","count":30935,"defaultRate":21.8},{"range":"40+","count":1810,"defaultRate":26.0}],"bySubGrade":[{"subGrade":"A1","count":18541,"defaultRate":3.2,"avgRate":5.32,"avgReturn":5.3},{"subGrade":"A2","count":10257,"defaultRate":5.0,"avgRate":6.7,"avgReturn":5.86},{"subGrade":"A3","count":9572,"defaultRate":5.9,"avgRate":7.17,"avgReturn":5.96},{"subGrade":"A4","count":13443,"defaultRate":6.9,"avgRate":7.53,"avgReturn":6.06},{"subGrade":"A5","count":14191,"defaultRate":7.9,"avgRate":8.08,"avgReturn":6.14},{"subGrade":"B1","count":20607,"defaultRate":9.8,"avgRate":8.54,"avgReturn":5.56},{"subGrade":"B2","count":20196,"defaultRate":10.6,"avgRate":9.49,"avgReturn":6.13},{"subGrade":"B3","count":20945,"defaultRate":11.7,"avgRate":10.26,"avgReturn":6.42},{"subGrade":"B4","count":23085,"defaultRate":13.8,"avgRate":10.96,"avgReturn":6.02},{"subGrade":"B5","count":27764,"defaultRate":15.3,"avgRate":11.48,"avgReturn":5.43},{"subGrade":"C1","count":24499,"defaultRate":17.2,"avgRate":12.42,"avgReturn":5.18},{"subGrade":"C2","count":19290,"defaultRate":19.2,"avgRate":13.25,"avgReturn":4.56},{"subGrade":"C3","count":16319,"defaultRate":19.7,"avgRate":13.82,"avgReturn":4.79},{"subGrade":"C4","count":16155,"defaultRate":21.3,"avgRate":14.56,"avgReturn":4.47},{"subGrade":"C5","count":13856,"defaultRate":23.1,"avgRate":15.52,"avgReturn":3.96},{"subGrade":"D1","count":11120,"defaultRate":25.3,"avgRate":16.65,"avgReturn":3.26},{"subGrade":"D2","count":8692,"defaultRate":26.2,"avgRate":17.63,"avgReturn":3.63},{"subGrade":"D3","count":6562,"defaultRate":29.0,"avgRate":18.59,"avgReturn":2.59},{"subGrade":"D4","count":5389,"defaultRate":30.0,"avgRate":19.44,"avgReturn":2.63},{"subGrade":"D5","count":4006,"defaultRate":31.9,"avgRate":20.51,"avgReturn":1.81},{"subGrade":"E1","count":3154,"defaultRate":32.9,"avgRate":20.96,"avgReturn":1.67},{"subGrade":"E2","count":2402,"defaultRate":33.9,"avgRate":21.4,"avgReturn":1.39},{"subGrade":"E3","count":1811,"defaultRate":36.4,"avgRate":21.58,"avgReturn":-0.07},{"subGrade":"E4","count":1286,"defaultRate":37.2,"avgRate":21.94,"avgReturn":-0.68},{"subGrade":"E5","count":1011,"defaultRate":39.4,"avgRate":22.05,"avgReturn":-2.39},{"subGrade":"F1","count":771,"defaultRate":38.3,"avgRate":22.09,"avgReturn":-0.13},{"subGrade":"F2","count":481,"defaultRate":41.0,"avgRate":22.06,"avgReturn":-2.1},{"subGrade":"F3","count":403,"defaultRate":40.2,"avgRate":22.09,"avgReturn":-0.34},{"subGrade":"F4","count":355,"defaultRate":42.0,"avgRate":22.09,"avgReturn":-2.26},{"subGrade":"F5","count":280,"defaultRate":45.0,"avgRate":22.09,"avgReturn":-5.85},{"subGrade":"G1","count":168,"defaultRate":44.0,"avgRate":21.99,"avgReturn":-3.21},{"subGrade":"G2","count":124,"defaultRate":54.8,"avgRate":21.96,"avgReturn":-12.86},{"subGrade":"G3","count":88,"defaultRate":44.3,"avgRate":22.09,"avgReturn":-3.32},{"subGrade":"G4","count":69,"defaultRate":56.5,"avgRate":22.09,"avgReturn":-12.54},{"subGrade":"G5","count":63,"defaultRate":60.3,"avgRate":21.83,"avgReturn":-18.5}],"gradePurpose":[{"grade":"B","purpose":"debt_consolidation","count":61528,"volume":784311675,"defaultRate":12.7},{"grade":"A","purpose":"debt_consolidation","count":31878,"volume":464791600,"defaultRate":5.7},{"grade":"A","purpose":"home_improvement","count":6106,"volume":76889325,"defaultRate":5.0},{"grade":"C","purpose":"credit_card","count":14820,"volume":195921000,"defaultRate":20.5},{"grade":"D","purpose":"debt_consolidation","count":21150,"volume":305125000,"defaultRate":28.8},{"grade":"C","purpose":"debt_consolidation","count":52146,"volume":694833750,"defaultRate":20.2},{"grade":"A","purpose":"car","count":1050,"volume":8747525,"defaultRate":5.5},{"grade":"B","purpose":"other","count":6981,"volume":56361050,"defaultRate":11.2},{"grade":"C","purpose":"other","count":8442,"volume":65804775,"defaultRate":17.2},{"grade":"B","purpose":"medical","count":1499,"volume":11178725,"defaultRate":14.1},{"grade":"B","purpose":"credit_card","count":27546,"volume":343944400,"defaultRate":12.5},{"grade":"F","purpose":"credit_card","count":173,"volume":2136050,"defaultRate":40.5},{"grade":"B","purpose":"moving","count":731,"volume":4734150,"defaultRate":12.9},{"grade":"C","purpose":"vacation","count":1125,"volume":6089550,"defaultRate":18.8},{"grade":"A","purpose":"credit_card","count":20063,"volume":289366400,"defaultRate":5.5},{"grade":"D","purpose":"credit_card","count":4421,"volume":61470875,"defaultRate":28.9},{"grade":"C","purpose":"home_improvement","count":6024,"volume":72171550,"defaultRate":19.0},{"grade":"B","purpose":"home_improvement","count":7914,"volume":86495125,"defaultRate":11.4},{"grade":"D","purpose":"home_improvement","count":2234,"volume":30654150,"defaultRate":24.6},{"grade":"A","purpose":"moving","count":260,"volume":2282050,"defaultRate":6.2},{"grade":"D","purpose":"major_purchase","count":892,"volume":10914300,"defaultRate":26.8},{"grade":"E","purpose":"debt_consolidation","count":5630,"volume":78379150,"defaultRate":35.6},{"grade":"C","purpose":"small_business","count":1232,"volume":16682575,"defaultRate":22.8},{"grade":"C","purpose":"moving","count":1031,"volume":6677025,"defaultRate":18.0},{"grade":"A","purpose":"major_purchase","count":2012,"volume":21095100,"defaultRate":5.4},{"grade":"A","purpose":"vacation","count":402,"volume":2557950,"defaultRate":9.2},{"grade":"C","purpose":"medical","count":1521,"volume":10913300,"defaultRate":20.4},{"grade":"B","purpose":"car","count":1418,"volume":10691125,"defaultRate":11.6},{"grade":"B","purpose":"vacation","count":988,"volume":5378550,"defaultRate":12.7},{"grade":"D","purpose":"medical","count":618,"volume":4683300,"defaultRate":25.6},{"grade":"A","purpose":"other","count":3003,"volume":30060400,"defaultRate":5.5},{"grade":"B","purpose":"major_purchase","count":2752,"volume":24409100,"defaultRate":11.7},{"grade":"C","purpose":"major_purchase","count":2199,"volume":20734650,"defaultRate":17.7},{"grade":"D","purpose":"other","count":3982,"volume":35068775,"defaultRate":23.5},{"grade":"B","purpose":"small_business","count":874,"volume":11409700,"defaultRate":14.1},{"grade":"D","purpose":"car","count":405,"volume":3222025,"defaultRate":24.7},{"grade":"E","purpose":"other","count":1247,"volume":11495475,"defaultRate":31.4},{"grade":"D","purpose":"vacation","count":382,"volume":1987350,"defaultRate":23.0},{"grade":"E","purpose":"home_improvement","count":583,"volume":8256900,"defaultRate":31.0},{"grade":"E","purpose":"major_purchase","count":224,"volume":2725200,"defaultRate":38.4},{"grade":"E","purpose":"credit_card","count":932,"volume":12389675,"defaultRate":38.4},{"grade":"F","purpose":"debt_consolidation","count":1318,"volume":16996900,"defaultRate":42.8},{"grade":"D","purpose":"moving","count":559,"volume":3362825,"defaultRate":25.0},{"grade":"E","purpose":"small_business","count":324,"volume":4600850,"defaultRate":39.5},{"grade":"A","purpose":"medical","count":662,"volume":5833850,"defaultRate":8.3},{"grade":"G","purpose":"debt_consolidation","count":267,"volume":3508200,"defaultRate":55.8},{"grade":"E","purpose":"medical","count":150,"volume":1105500,"defaultRate":33.3},{"grade":"E","purpose":"moving","count":182,"volume":1272800,"defaultRate":31.3},{"grade":"D","purpose":"small_business","count":759,"volume":11537050,"defaultRate":29.5},{"grade":"C","purpose":"car","count":1026,"volume":8100300,"defaultRate":15.2},{"grade":"A","purpose":"small_business","count":386,"volume":5509975,"defaultRate":8.5},{"grade":"F","purpose":"home_improvement","count":111,"volume":1555150,"defaultRate":39.6}]};
+
+// ─── Colors ───────────────────────────────────────────────────────────────
+const C = {
+  purple:"#8B5CF6",purpleL:"#C4B5FD",pink:"#EC4899",pinkL:"#F9A8D4",
+  cyan:"#06B6D4",cyanL:"#67E8F9",teal:"#14B8A6",tealL:"#5EEAD4",
+  red:"#EF4444",amber:"#F59E0B",green:"#10B981",
+  g50:"#F9FAFB",g100:"#F3F4F6",g200:"#E5E7EB",g300:"#D1D5DB",g400:"#9CA3AF",g500:"#6B7280",g600:"#4B5563",g700:"#374151",g800:"#1F2937",g900:"#111827"
+};
+const GC = {A:"#10B981",B:"#06B6D4",C:"#8B5CF6",D:"#F59E0B",E:"#EC4899",F:"#EF4444",G:"#991B1B"};
+const PAL = ["#8B5CF6","#EC4899","#06B6D4","#14B8A6","#F59E0B","#10B981","#EF4444","#6366F1","#F97316","#84CC16"];
+
+// ─── Formatters ───────────────────────────────────────────────────────────
+const f = {
+  cur: v => v>=1e9?`$${(v/1e9).toFixed(1)}B`:v>=1e6?`$${(v/1e6).toFixed(1)}M`:v>=1e3?`$${(v/1e3).toFixed(0)}K`:`$${v}`,
+  num: v => v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1e3?`${(v/1e3).toFixed(1)}K`:`${v}`,
+  pct: v => `${v.toFixed(1)}%`,
+  purp: s => s.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase()),
+  mo: s => {const m=s.split("-")[1];return["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)];}
+};
+
+// ─── Components ───────────────────────────────────────────────────────────
+function TT({active,payload,label,fmt:formatter}){
+  if(!active||!payload?.length) return null;
+  return React.createElement('div',{style:{background:"white",border:"1px solid #E5E7EB",borderRadius:8,padding:"12px 16px",boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontSize:12,zIndex:999}},
+    React.createElement('div',{style:{fontWeight:600,color:C.g800,marginBottom:6}},label),
+    payload.map((p,i)=>React.createElement('div',{key:i,style:{display:"flex",alignItems:"center",gap:8,marginBottom:2}},
+      React.createElement('div',{style:{width:8,height:8,borderRadius:4,background:p.color}}),
+      React.createElement('span',{style:{color:C.g500}},p.name,": "),
+      React.createElement('span',{style:{fontWeight:600,color:C.g800}},formatter?formatter(p.value,p.name):p.value)
+    ))
+  );
+}
+
+function Toggle({options,value,onChange}){
+  return React.createElement('div',{style:{display:"flex",background:C.g100,borderRadius:6,padding:2}},
+    options.map(o=>React.createElement('button',{key:o.value,onClick:()=>onChange(o.value),style:{
+      padding:"4px 12px",borderRadius:4,border:"none",fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.2s",
+      background:value===o.value?"white":"transparent",color:value===o.value?C.g800:C.g500,
+      boxShadow:value===o.value?"0 1px 3px rgba(0,0,0,0.1)":"none"
+    }},o.label))
+  );
+}
+
+function KPI({label,value,sub,color,trend,trendLabel}){
+  const[hov,setHov]=useState(false);
+  return React.createElement('div',{
+    className:"animate-in",
+    onMouseEnter:()=>setHov(true),onMouseLeave:()=>setHov(false),
+    style:{background:"white",border:`1px solid ${hov?color:"#E5E7EB"}`,borderRadius:8,padding:"20px 24px",
+      transition:"all 0.25s",cursor:"default",position:"relative",overflow:"hidden",
+      boxShadow:hov?"0 4px 16px rgba(0,0,0,0.06)":"0 1px 3px rgba(0,0,0,0.02)",
+      transform:hov?"translateY(-2px)":"none"}},
+    React.createElement('div',{style:{position:"absolute",top:0,right:0,width:60,height:60,background:`linear-gradient(135deg,${color}08,${color}15)`,borderRadius:"0 0 0 60px"}}),
+    React.createElement('div',{style:{fontSize:11,fontWeight:500,color:C.g400,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}},label),
+    React.createElement('div',{style:{fontSize:28,fontWeight:700,color:C.g900,lineHeight:1.2,marginBottom:4}},value),
+    sub&&React.createElement('div',{style:{fontSize:12,color:C.g500}},sub),
+    trend!==undefined&&React.createElement('div',{style:{display:"flex",alignItems:"center",gap:4,marginTop:8}},
+      React.createElement('span',{style:{fontSize:11,fontWeight:600,color:trend>=0?C.green:C.red,background:trend>=0?"#ECFDF5":"#FEF2F2",padding:"2px 6px",borderRadius:4}},
+        (trend>=0?"+":"")+trend+"%"),
+      trendLabel&&React.createElement('span',{style:{fontSize:11,color:C.g400}},trendLabel)
+    )
+  );
+}
+
+function Card({title,subtitle,children,headerRight,style={}}){
+  return React.createElement('div',{className:"animate-in",style:{background:"white",border:"1px solid #E5E7EB",borderRadius:8,...style}},
+    title&&React.createElement('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 20px 8px"}},
+      React.createElement('div',null,
+        React.createElement('div',{style:{fontSize:14,fontWeight:600,color:C.g800}},title),
+        subtitle&&React.createElement('div',{style:{fontSize:11,color:C.g400,marginTop:2}},subtitle)
+      ),
+      headerRight
+    ),
+    React.createElement('div',{style:{padding:"8px 20px 20px"}},children)
+  );
+}
+
+function Modal({isOpen,onClose,title,children}){
+  if(!isOpen) return null;
+  return React.createElement('div',{style:{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"},onClick:onClose},
+    React.createElement('div',{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.4)",backdropFilter:"blur(4px)"}}),
+    React.createElement('div',{className:"modal-in",onClick:e=>e.stopPropagation(),style:{
+      position:"relative",background:"white",borderRadius:12,maxWidth:800,width:"90%",maxHeight:"85vh",overflow:"auto",
+      boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}},
+      React.createElement('div',{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 24px",borderBottom:"1px solid #E5E7EB"}},
+        React.createElement('div',{style:{fontSize:16,fontWeight:600,color:C.g900}},title),
+        React.createElement('button',{onClick:onClose,style:{background:"none",border:"none",fontSize:20,cursor:"pointer",color:C.g400,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:6}},"×")
+      ),
+      React.createElement('div',{style:{padding:24}},children)
+    )
+  );
+}
+
+// ─── Main Dashboard ───────────────────────────────────────────────────────
+function Dashboard(){
+  const[darkMode,setDarkMode]=useState(false);
+  const[timeMetric,setTimeMetric]=useState("defaultRate");
+  const[gradeMetric,setGradeMetric]=useState("count");
+  const[stateMetric,setStateMetric]=useState("volume");
+  const[modal,setModal]=useState(null);
+  const[sortCfg,setSortCfg]=useState({key:"count",dir:"desc"});
+  const[loaded,setLoaded]=useState(false);
+  const[hovGrade,setHovGrade]=useState(null);
+
+  useEffect(()=>{setTimeout(()=>setLoaded(true),200)},[]);
+
+  const bg=darkMode?C.g900:"#F8F9FC";
+  const tx=darkMode?"#F9FAFB":C.g900;
+  const txS=darkMode?C.g400:C.g500;
+  const bdr=darkMode?C.g700:"#E5E7EB";
+  const cardBg=darkMode?C.g800:"white";
+
+  const statusDonut=[{name:"Fully Paid",value:DATA.kpis.fullyPaid,fill:C.green},{name:"Charged Off",value:DATA.kpis.chargedOff,fill:C.red}];
+  const gradeDonut=DATA.byGrade.map(g=>({name:g.grade,value:g.count,fill:GC[g.grade]}));
+  const monthlyData=DATA.byMonth.map(m=>({...m,label:f.mo(m.month)}));
+  const purposeBar=DATA.byPurpose.filter(p=>p.count>100).map(p=>({...p,label:f.purp(p.purpose)}));
+  const subGradeScatter=DATA.bySubGrade.map(sg=>({...sg,grade:sg.subGrade[0],fill:GC[sg.subGrade[0]]}));
+
+  const tableData=useMemo(()=>{
+    let d=[...DATA.byState];
+    d.sort((a,b)=>sortCfg.dir==="asc"?a[sortCfg.key]-b[sortCfg.key]:b[sortCfg.key]-a[sortCfg.key]);
+    return d;
+  },[sortCfg]);
+
+  const handleSort=k=>setSortCfg(p=>({key:k,dir:p.key===k&&p.dir==="desc"?"asc":"desc"}));
+
+  // Styles for dark mode override
+  const cBg = darkMode ? {background:C.g800,borderColor:C.g700} : {};
+
+  return React.createElement('div',{style:{minHeight:"100vh",background:bg,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",transition:"background 0.3s",color:tx}},
+
+    // ── Header ──
+    React.createElement('div',{style:{background:darkMode?"rgba(31,41,55,0.95)":"rgba(255,255,255,0.95)",borderBottom:`1px solid ${bdr}`,padding:"0 32px",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(12px)"}},
+      React.createElement('div',{style:{maxWidth:1440,margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"center",height:56}},
+        React.createElement('div',{style:{display:"flex",alignItems:"center",gap:16}},
+          React.createElement('div',{style:{width:28,height:28,borderRadius:6,background:`linear-gradient(135deg,${C.purple},${C.pink})`,display:"flex",alignItems:"center",justifyContent:"center"}},
+            React.createElement('span',{style:{color:"white",fontSize:14,fontWeight:700}},"R")
+          ),
+          React.createElement('span',{style:{fontSize:15,fontWeight:600,color:tx}},"Risk Analytics"),
+          React.createElement('span',{style:{fontSize:11,color:C.g400,background:darkMode?C.g700:C.g100,padding:"2px 8px",borderRadius:4}},"2016 Portfolio")
+        ),
+        React.createElement('div',{style:{display:"flex",alignItems:"center",gap:12}},
+          React.createElement('span',{style:{fontSize:11,color:txS}},darkMode?"Dark":"Light"),
+          React.createElement('button',{onClick:()=>setDarkMode(!darkMode),style:{width:36,height:20,borderRadius:10,border:"none",cursor:"pointer",position:"relative",background:darkMode?C.purple:C.g300,transition:"background 0.3s"}},
+            React.createElement('div',{style:{width:16,height:16,borderRadius:8,background:"white",position:"absolute",top:2,transition:"left 0.3s",left:darkMode?18:2,boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}})
+          )
+        )
+      )
+    ),
+
+    // ── Content ──
+    React.createElement('div',{style:{maxWidth:1440,margin:"0 auto",padding:"24px 32px",opacity:loaded?1:0,transition:"opacity 0.6s"}},
+
+      // KPI Row
+      React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:16,marginBottom:24}},
+        React.createElement(KPI,{label:"Total Loan Volume",value:f.cur(DATA.kpis.totalVolume),sub:f.num(DATA.kpis.totalLoans)+" loans",color:C.purple}),
+        React.createElement(KPI,{label:"Average Interest Rate",value:DATA.kpis.avgIntRate+"%",sub:"Across all grades",color:C.cyan}),
+        React.createElement(KPI,{label:"Default Rate",value:DATA.kpis.defaultRate+"%",sub:f.num(DATA.kpis.chargedOff)+" charged off",color:C.pink,trend:2.6,trendLabel:"vs Q1"}),
+        React.createElement(KPI,{label:"Portfolio Return",value:DATA.kpis.avgReturn+"%",sub:"Avg realized return",color:C.teal,trend:-1.2,trendLabel:"vs Q1"}),
+        React.createElement(KPI,{label:"Average Loan Size",value:f.cur(DATA.kpis.avgLoan),sub:"Per origination",color:C.amber})
+      ),
+
+      // Row 1: Status + Grade + HomeOwnership
+      React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:24}},
+
+        // Status Donut
+        React.createElement(Card,{title:"Portfolio Status",subtitle:"Loan outcome distribution",style:cBg},
+          React.createElement('div',{style:{height:220}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(PieChart,null,
+                React.createElement(Pie,{data:statusDonut,cx:"50%",cy:"50%",innerRadius:60,outerRadius:85,paddingAngle:3,dataKey:"value",animationBegin:0,animationDuration:800},
+                  statusDonut.map((e,i)=>React.createElement(Cell,{key:i,fill:e.fill,stroke:"none"}))
+                ),
+                React.createElement(Tooltip,{content:React.createElement(TT,{fmt:(v)=>f.num(v)+" ("+(v/DATA.kpis.totalLoans*100).toFixed(1)+"%)"})})
+              )
+            )
+          ),
+          React.createElement('div',{style:{display:"flex",justifyContent:"center",gap:24}},
+            statusDonut.map(s=>React.createElement('div',{key:s.name,style:{display:"flex",alignItems:"center",gap:6}},
+              React.createElement('div',{style:{width:8,height:8,borderRadius:4,background:s.fill}}),
+              React.createElement('span',{style:{fontSize:11,color:txS}},s.name),
+              React.createElement('span',{style:{fontSize:11,fontWeight:600,color:tx}},(s.value/DATA.kpis.totalLoans*100).toFixed(1)+"%")
+            ))
+          )
+        ),
+
+        // Grade Donut
+        React.createElement(Card,{title:"Grade Distribution",subtitle:"Click a grade to drill down",style:cBg},
+          React.createElement('div',{style:{height:220}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(PieChart,null,
+                React.createElement(Pie,{data:gradeDonut,cx:"50%",cy:"50%",innerRadius:60,outerRadius:85,paddingAngle:2,dataKey:"value",
+                  onClick:d=>setModal({grade:d.name,type:"grade"}),style:{cursor:"pointer"},animationBegin:200,animationDuration:800},
+                  gradeDonut.map((e,i)=>React.createElement(Cell,{key:i,fill:e.fill,stroke:"none",
+                    fillOpacity:hovGrade&&hovGrade!==e.name?0.3:1,style:{transition:"fill-opacity 0.2s"}}))
+                ),
+                React.createElement(Tooltip,{content:React.createElement(TT,{fmt:(v)=>f.num(v)+" loans"})})
+              )
+            )
+          ),
+          React.createElement('div',{style:{display:"flex",justifyContent:"center",gap:10,flexWrap:"wrap"}},
+            DATA.byGrade.map(g=>React.createElement('div',{key:g.grade,style:{display:"flex",alignItems:"center",gap:4,cursor:"pointer",padding:"2px 6px",borderRadius:4,
+              background:hovGrade===g.grade?C.g100:"transparent"},
+              onMouseEnter:()=>setHovGrade(g.grade),onMouseLeave:()=>setHovGrade(null),onClick:()=>setModal({grade:g.grade,type:"grade"})},
+              React.createElement('div',{style:{width:8,height:8,borderRadius:2,background:GC[g.grade]}}),
+              React.createElement('span',{style:{fontSize:11,color:txS}},g.grade),
+              React.createElement('span',{style:{fontSize:11,fontWeight:600,color:tx}},(g.count/DATA.kpis.totalLoans*100).toFixed(0)+"%")
+            ))
+          )
+        ),
+
+        // Home Ownership
+        React.createElement(Card,{title:"Home Ownership",subtitle:"Default rate by housing status",style:cBg},
+          React.createElement('div',{style:{display:"flex",flexDirection:"column",gap:14,marginTop:8}},
+            DATA.byHomeOwnership.filter(h=>h.ownership!=="ANY").map((h,i)=>{
+              const bw=(h.count/DATA.kpis.totalLoans)*100;
+              return React.createElement('div',{key:h.ownership},
+                React.createElement('div',{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+                  React.createElement('span',{style:{fontSize:12,fontWeight:500,color:tx}},h.ownership),
+                  React.createElement('span',{style:{fontSize:11,color:txS}},f.num(h.count)+" loans")
+                ),
+                React.createElement('div',{style:{position:"relative",height:28,background:darkMode?C.g700:C.g100,borderRadius:4,overflow:"hidden"}},
+                  React.createElement('div',{style:{position:"absolute",left:0,top:0,height:"100%",borderRadius:4,width:bw+"%",background:`linear-gradient(90deg,${PAL[i]},${PAL[i]}aa)`,transition:"width 0.8s ease-out"}}),
+                  React.createElement('div',{style:{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",fontSize:11,fontWeight:600,color:bw>30?"white":tx}},h.defaultRate+"% default")
+                ),
+                React.createElement('div',{style:{display:"flex",gap:12,marginTop:4}},
+                  React.createElement('span',{style:{fontSize:10,color:C.teal}},"Return: "+h.avgReturn+"%"),
+                  React.createElement('span',{style:{fontSize:10,color:txS}},"Vol: "+f.cur(h.volume))
+                )
+              );
+            })
+          )
+        )
+      ),
+
+      // Row 2: Purpose + Risk-Return Scatter
+      React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1.2fr 0.8fr",gap:16,marginBottom:24}},
+
+        // Purpose
+        React.createElement(Card,{title:"Why Borrowers Take Loans",subtitle:"Click a bar to drill down by grade",
+          headerRight:React.createElement(Toggle,{options:[{value:"count",label:"Count"},{value:"volume",label:"Volume"},{value:"defaultRate",label:"Default %"}],value:gradeMetric,onChange:setGradeMetric}),
+          style:cBg},
+          React.createElement('div',{style:{height:360}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(BarChart,{data:purposeBar.slice(0,10),layout:"vertical",margin:{left:110,right:20,top:8,bottom:8}},
+                React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:darkMode?C.g700:C.g200,horizontal:true,vertical:false}),
+                React.createElement(XAxis,{type:"number",tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,
+                  tickFormatter:gradeMetric==="volume"?v=>f.cur(v):gradeMetric==="count"?v=>f.num(v):v=>v+"%"}),
+                React.createElement(YAxis,{type:"category",dataKey:"label",tick:{fontSize:11,fill:txS},axisLine:false,tickLine:false,width:105}),
+                React.createElement(Tooltip,{content:React.createElement(TT,{fmt:(v,n)=>n&&(n.includes("Rate")||n.includes("Return"))?v+"%":typeof v==="number"&&v>10000?f.cur(v):f.num(v)})}),
+                React.createElement(Bar,{dataKey:gradeMetric,radius:[0,4,4,0],animationDuration:600,onClick:d=>setModal({purpose:d.purpose,type:"purpose"}),cursor:"pointer"},
+                  purposeBar.slice(0,10).map((e,i)=>React.createElement(Cell,{key:i,fill:PAL[i%PAL.length]}))
+                )
+              )
+            )
+          )
+        ),
+
+        // Scatter
+        React.createElement(Card,{title:"Risk vs. Return by Sub-Grade",subtitle:"Are we paid enough for the risk?",style:cBg},
+          React.createElement('div',{style:{height:360}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(ScatterChart,{margin:{left:0,right:16,top:8,bottom:28}},
+                React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:darkMode?C.g700:C.g200}),
+                React.createElement(XAxis,{type:"number",dataKey:"defaultRate",name:"Default Rate",unit:"%",tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,
+                  label:{value:"Default Rate %",position:"bottom",offset:10,style:{fontSize:11,fill:C.g400}}}),
+                React.createElement(YAxis,{type:"number",dataKey:"avgReturn",name:"Return",unit:"%",tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,
+                  label:{value:"Return %",angle:-90,position:"insideLeft",offset:10,style:{fontSize:11,fill:C.g400}}}),
+                React.createElement(ZAxis,{type:"number",dataKey:"count",range:[30,350]}),
+                React.createElement(Tooltip,{content:({active,payload})=>{
+                  if(!active||!payload?.length)return null;
+                  const d=payload[0].payload;
+                  return React.createElement('div',{style:{background:"white",border:"1px solid #E5E7EB",borderRadius:8,padding:"12px 16px",boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontSize:12}},
+                    React.createElement('div',{style:{fontWeight:600,marginBottom:4}},d.subGrade),
+                    React.createElement('div',null,"Default: ",React.createElement('b',null,d.defaultRate+"%")),
+                    React.createElement('div',null,"Return: ",React.createElement('b',{style:{color:d.avgReturn>=0?C.green:C.red}},d.avgReturn+"%")),
+                    React.createElement('div',null,"Int Rate: ",React.createElement('b',null,d.avgRate+"%")),
+                    React.createElement('div',null,"Loans: ",React.createElement('b',null,f.num(d.count)))
+                  );
+                }}),
+                React.createElement(Scatter,{data:subGradeScatter,animationDuration:600},
+                  subGradeScatter.map((e,i)=>React.createElement(Cell,{key:i,fill:e.fill,fillOpacity:0.75,stroke:e.fill,strokeWidth:1}))
+                )
+              )
+            )
+          ),
+          React.createElement('div',{style:{display:"flex",justifyContent:"center",gap:10,flexWrap:"wrap",marginTop:4}},
+            Object.entries(GC).map(([g,c])=>React.createElement('div',{key:g,style:{display:"flex",alignItems:"center",gap:4}},
+              React.createElement('div',{style:{width:8,height:8,borderRadius:4,background:c}}),
+              React.createElement('span',{style:{fontSize:10,color:txS}},"Grade "+g)
+            ))
+          )
+        )
+      ),
+
+      // Row 3: Timeline + Grade Default
+      React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1.3fr 0.7fr",gap:16,marginBottom:24}},
+
+        // Timeline
+        React.createElement(Card,{title:"Portfolio Trend Over Time",subtitle:"Is the portfolio getting riskier?",
+          headerRight:React.createElement(Toggle,{options:[{value:"defaultRate",label:"Default %"},{value:"avgRate",label:"Int Rate"},{value:"avgReturn",label:"Return"},{value:"volume",label:"Volume"}],value:timeMetric,onChange:setTimeMetric}),
+          style:cBg},
+          React.createElement('div',{style:{height:300}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(ComposedChart,{data:monthlyData,margin:{left:0,right:8,top:8,bottom:8}},
+                React.createElement('defs',null,
+                  React.createElement('linearGradient',{id:"ag",x1:"0",y1:"0",x2:"0",y2:"1"},
+                    React.createElement('stop',{offset:"5%",stopColor:C.purple,stopOpacity:0.15}),
+                    React.createElement('stop',{offset:"95%",stopColor:C.purple,stopOpacity:0})
+                  )
+                ),
+                React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:darkMode?C.g700:C.g200,vertical:false}),
+                React.createElement(XAxis,{dataKey:"label",tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false}),
+                React.createElement(YAxis,{tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,tickFormatter:timeMetric==="volume"?v=>f.cur(v):v=>v+"%"}),
+                React.createElement(Tooltip,{content:React.createElement(TT,{fmt:(v,n)=>n&&n.includes("olume")?f.cur(v):v+"%"})}),
+                React.createElement(Area,{type:"monotone",dataKey:timeMetric,fill:"url(#ag)",stroke:"none",animationDuration:600}),
+                React.createElement(Line,{type:"monotone",dataKey:timeMetric,stroke:C.purple,strokeWidth:2.5,
+                  dot:{fill:C.purple,r:4,strokeWidth:2,stroke:"white"},activeDot:{r:6,stroke:C.purple,strokeWidth:2,fill:"white"},animationDuration:600}),
+                timeMetric==="defaultRate"&&React.createElement(Line,{type:"monotone",dataKey:"earlyDefaultRate",stroke:C.pink,strokeWidth:1.5,strokeDasharray:"5 5",
+                  dot:{fill:C.pink,r:3},name:"Early Default %",animationDuration:600})
+              )
+            )
+          )
+        ),
+
+        // Grade Default
+        React.createElement(Card,{title:"Default Rate by Grade",subtitle:"Click to drill down",style:cBg},
+          React.createElement('div',{style:{height:300}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(BarChart,{data:DATA.byGrade,margin:{left:0,right:8,top:8,bottom:8}},
+                React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:darkMode?C.g700:C.g200,vertical:false}),
+                React.createElement(XAxis,{dataKey:"grade",tick:{fontSize:12,fontWeight:600,fill:txS},axisLine:false,tickLine:false}),
+                React.createElement(YAxis,{tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,tickFormatter:v=>v+"%"}),
+                React.createElement(Tooltip,{content:({active,payload})=>{
+                  if(!active||!payload?.length)return null;
+                  const d=payload[0].payload;
+                  return React.createElement('div',{style:{background:"white",border:"1px solid #E5E7EB",borderRadius:8,padding:"12px 16px",boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontSize:12}},
+                    React.createElement('div',{style:{fontWeight:600,marginBottom:4}},"Grade "+d.grade),
+                    React.createElement('div',null,"Default: ",React.createElement('b',{style:{color:C.red}},d.defaultRate+"%")),
+                    React.createElement('div',null,"Interest: ",React.createElement('b',null,d.avgRate+"%")),
+                    React.createElement('div',null,"Return: ",React.createElement('b',{style:{color:d.avgReturn>=0?C.green:C.red}},d.avgReturn+"%")),
+                    React.createElement('div',null,"Volume: ",React.createElement('b',null,f.cur(d.volume)))
+                  );
+                }}),
+                React.createElement(Bar,{dataKey:"defaultRate",radius:[4,4,0,0],animationDuration:600,onClick:d=>setModal({grade:d.grade,type:"grade"}),cursor:"pointer"},
+                  DATA.byGrade.map((e,i)=>React.createElement(Cell,{key:i,fill:GC[e.grade]}))
+                )
+              )
+            )
+          ),
+          React.createElement('div',{style:{padding:"8px 0",borderTop:`1px solid ${bdr}`,marginTop:8,display:"flex",justifyContent:"space-between",fontSize:11,color:txS}},
+            React.createElement('span',null,"Grades E-G: ",React.createElement('b',{style:{color:C.red}},"negative returns")),
+            React.createElement('span',null,"Click bar to drill down")
+          )
+        )
+      ),
+
+      // Row 4: State + FICO + DTI/Verification
+      React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:24}},
+
+        // States
+        React.createElement(Card,{title:"Geographic Concentration",subtitle:"Top 10 states",
+          headerRight:React.createElement(Toggle,{options:[{value:"volume",label:"Volume"},{value:"count",label:"Count"},{value:"defaultRate",label:"Default %"}],value:stateMetric,onChange:setStateMetric}),
+          style:cBg},
+          React.createElement('div',{style:{height:300}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(BarChart,{data:DATA.byState.slice(0,10),margin:{left:0,right:8,top:8,bottom:8}},
+                React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:darkMode?C.g700:C.g200,vertical:false}),
+                React.createElement(XAxis,{dataKey:"state",tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false}),
+                React.createElement(YAxis,{tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,
+                  tickFormatter:stateMetric==="volume"?v=>f.cur(v):stateMetric==="count"?v=>f.num(v):v=>v+"%"}),
+                React.createElement(Tooltip,{content:React.createElement(TT,{fmt:(v,n)=>n&&n.includes("Rate")?v+"%":typeof v==="number"&&v>10000?f.cur(v):f.num(v)})}),
+                React.createElement(Bar,{dataKey:stateMetric,radius:[4,4,0,0],animationDuration:600},
+                  DATA.byState.slice(0,10).map((e,i)=>React.createElement(Cell,{key:i,fill:PAL[i%PAL.length]}))
+                )
+              )
+            )
+          )
+        ),
+
+        // FICO
+        React.createElement(Card,{title:"FICO Score Impact",subtitle:"Default rates by credit score",style:cBg},
+          React.createElement('div',{style:{display:"flex",flexDirection:"column",gap:18,marginTop:12}},
+            DATA.byFico.map((fi,i)=>{
+              const mx=Math.max(...DATA.byFico.map(x=>x.count));
+              const bw=(fi.count/mx)*100;
+              return React.createElement('div',{key:fi.range},
+                React.createElement('div',{style:{display:"flex",justifyContent:"space-between",marginBottom:6}},
+                  React.createElement('span',{style:{fontSize:13,fontWeight:600,color:tx}},"FICO "+fi.range),
+                  React.createElement('div',{style:{display:"flex",gap:12}},
+                    React.createElement('span',{style:{fontSize:11,color:C.red,fontWeight:600}},fi.defaultRate+"% default"),
+                    React.createElement('span',{style:{fontSize:11,color:C.teal,fontWeight:600}},fi.avgReturn+"% return")
+                  )
+                ),
+                React.createElement('div',{style:{position:"relative",height:36,background:darkMode?C.g700:C.g100,borderRadius:6,overflow:"hidden"}},
+                  React.createElement('div',{style:{position:"absolute",left:0,top:0,height:"100%",borderRadius:6,width:bw+"%",
+                    background:`linear-gradient(90deg,${[C.pink,C.purple,C.teal][i]},${[C.pink,C.purple,C.teal][i]}88)`,transition:"width 0.8s ease-out"}}),
+                  React.createElement('div',{style:{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:12,fontWeight:600,color:"white"}},
+                    f.num(fi.count)+" loans")
+                ),
+                React.createElement('div',{style:{fontSize:10,color:txS,marginTop:3}},"Avg rate: "+fi.avgRate+"%")
+              );
+            })
+          )
+        ),
+
+        // DTI + Verification
+        React.createElement(Card,{title:"Risk Segmentation",subtitle:"DTI and verification breakdown",style:cBg},
+          React.createElement('div',{style:{marginBottom:16}},
+            React.createElement('div',{style:{fontSize:12,fontWeight:600,color:tx,marginBottom:8}},"Default Rate by DTI"),
+            React.createElement('div',{style:{height:140}},
+              React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+                React.createElement(BarChart,{data:DATA.byDti,margin:{left:0,right:8,top:8,bottom:8}},
+                  React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:darkMode?C.g700:C.g200,vertical:false}),
+                  React.createElement(XAxis,{dataKey:"range",tick:{fontSize:10,fill:C.g400},axisLine:false,tickLine:false}),
+                  React.createElement(YAxis,{tick:{fontSize:10,fill:C.g400},axisLine:false,tickLine:false,tickFormatter:v=>v+"%"}),
+                  React.createElement(Tooltip,{content:React.createElement(TT,{fmt:(v,n)=>n&&n.includes("Rate")?v+"%":f.num(v)})}),
+                  React.createElement(Bar,{dataKey:"defaultRate",radius:[4,4,0,0],animationDuration:600},
+                    DATA.byDti.map((e,i)=>React.createElement(Cell,{key:i,fill:[C.teal,C.cyan,C.purple,C.pink,C.red][i]}))
+                  )
+                )
+              )
+            )
+          ),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontSize:12,fontWeight:600,color:tx,marginBottom:8}},"Verification Status"),
+            DATA.byVerification.map((v,i)=>React.createElement('div',{key:v.status,style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:i<DATA.byVerification.length-1?`1px solid ${bdr}`:"none"}},
+              React.createElement('div',null,
+                React.createElement('div',{style:{fontSize:12,fontWeight:500,color:tx}},v.status),
+                React.createElement('div',{style:{fontSize:10,color:txS}},f.num(v.count)+" loans")
+              ),
+              React.createElement('div',{style:{textAlign:"right"}},
+                React.createElement('div',{style:{fontSize:13,fontWeight:700,color:v.defaultRate>15?C.red:v.defaultRate>12?C.amber:C.green}},v.defaultRate+"%"),
+                React.createElement('div',{style:{fontSize:10,color:txS}},"default rate")
+              )
+            ))
+          )
+        )
+      ),
+
+      // Row 5: Employment + SubGrade Heatmap
+      React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:24}},
+
+        // Employment
+        React.createElement(Card,{title:"Employment Length Impact",subtitle:"Default and return by tenure",style:cBg},
+          React.createElement('div',{style:{height:280}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(ComposedChart,{data:DATA.byEmpLength,margin:{left:0,right:8,top:8,bottom:40}},
+                React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:darkMode?C.g700:C.g200,vertical:false}),
+                React.createElement(XAxis,{dataKey:"empLength",tick:{fontSize:9,fill:C.g400,angle:-35,textAnchor:"end"},axisLine:false,tickLine:false,height:50}),
+                React.createElement(YAxis,{yAxisId:"left",tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,tickFormatter:v=>v+"%"}),
+                React.createElement(Tooltip,{content:React.createElement(TT,{fmt:(v)=>v+"%"})}),
+                React.createElement(Bar,{yAxisId:"left",dataKey:"defaultRate",name:"Default Rate",fill:C.pink,fillOpacity:0.7,radius:[4,4,0,0],animationDuration:600}),
+                React.createElement(Line,{yAxisId:"left",type:"monotone",dataKey:"avgReturn",name:"Avg Return",stroke:C.teal,strokeWidth:2.5,
+                  dot:{fill:C.teal,r:3,stroke:"white",strokeWidth:2},animationDuration:600})
+              )
+            )
+          )
+        ),
+
+        // Heatmap
+        React.createElement(Card,{title:"Sub-Grade Performance Matrix",subtitle:"Return heatmap across all sub-grades",style:cBg},
+          React.createElement('div',{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginTop:4}},
+            ["A","B","C","D","E","F","G"].map(g=>React.createElement('div',{key:g,style:{textAlign:"center",fontSize:11,fontWeight:600,color:GC[g],padding:"4px 0"}},g)),
+            [1,2,3,4,5].reduce((acc,n)=>{
+              ["A","B","C","D","E","F","G"].forEach(g=>{
+                const sg=DATA.bySubGrade.find(s=>s.subGrade===g+n);
+                if(!sg) acc.push(React.createElement('div',{key:g+n,style:{height:42,borderRadius:4,background:darkMode?C.g700:C.g50}}));
+                else{
+                  const int=Math.max(0,Math.min(1,(sg.avgReturn+20)/27));
+                  const r=Math.round(239*(1-int)+16*int),gr=Math.round(68*(1-int)+185*int),b=Math.round(68*(1-int)+129*int);
+                  acc.push(React.createElement('div',{key:g+n,
+                    onClick:()=>setModal({grade:g,type:"grade"}),
+                    style:{height:42,borderRadius:4,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                      background:`rgb(${r},${gr},${b})`,cursor:"pointer",transition:"transform 0.15s,box-shadow 0.15s"},
+                    onMouseEnter:e=>{e.currentTarget.style.transform="scale(1.1)";e.currentTarget.style.boxShadow="0 4px 8px rgba(0,0,0,0.15)";},
+                    onMouseLeave:e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="none";}},
+                    React.createElement('div',{style:{fontSize:9,fontWeight:700,color:"white"}},g+n),
+                    React.createElement('div',{style:{fontSize:8,color:"rgba(255,255,255,0.85)"}},sg.avgReturn+"%")
+                  ));
+                }
+              });
+              return acc;
+            },[])
+          ),
+          React.createElement('div',{style:{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:10,color:txS}},
+            React.createElement('span',{style:{display:"flex",alignItems:"center",gap:4}},
+              React.createElement('div',{style:{width:12,height:8,borderRadius:2,background:C.red}}),"Negative Return"),
+            React.createElement('span',{style:{display:"flex",alignItems:"center",gap:4}},
+              React.createElement('div',{style:{width:12,height:8,borderRadius:2,background:C.green}}),"Positive Return")
+          )
+        )
+      ),
+
+      // Row 6: Data Table
+      React.createElement(Card,{title:"State-Level Detail",subtitle:"Click column headers to sort",style:{...cBg,marginBottom:24}},
+        React.createElement('div',{style:{overflowX:"auto"}},
+          React.createElement('table',{style:{width:"100%",borderCollapse:"separate",borderSpacing:0,fontSize:12}},
+            React.createElement('thead',null,
+              React.createElement('tr',null,
+                [{k:"state",l:"State",a:"left"},{k:"count",l:"Loans",a:"right"},{k:"volume",l:"Volume",a:"right"},{k:"defaultRate",l:"Default Rate",a:"right"},{k:"avgReturn",l:"Avg Return",a:"right"}].map(c=>
+                  React.createElement('th',{key:c.k,onClick:()=>handleSort(c.k),style:{
+                    padding:"10px 12px",textAlign:c.a,fontWeight:600,color:txS,fontSize:11,borderBottom:`2px solid ${bdr}`,cursor:"pointer",
+                    userSelect:"none",textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap",
+                    background:sortCfg.key===c.k?(darkMode?C.g700:C.g50):"transparent"
+                  }},c.l+(sortCfg.key===c.k?(sortCfg.dir==="desc"?" ↓":" ↑"):""))
+                ),
+                React.createElement('th',{style:{padding:"10px 12px",textAlign:"center",fontWeight:600,color:txS,fontSize:11,borderBottom:`2px solid ${bdr}`,textTransform:"uppercase",letterSpacing:"0.05em"}},"Risk")
+              )
+            ),
+            React.createElement('tbody',null,
+              tableData.map(row=>React.createElement('tr',{key:row.state,
+                onMouseEnter:e=>e.currentTarget.style.background=darkMode?C.g700:C.g50,
+                onMouseLeave:e=>e.currentTarget.style.background="transparent",
+                style:{transition:"background 0.15s"}},
+                React.createElement('td',{style:{padding:"10px 12px",borderBottom:`1px solid ${bdr}`,fontWeight:600}},row.state),
+                React.createElement('td',{style:{padding:"10px 12px",borderBottom:`1px solid ${bdr}`,textAlign:"right",fontVariantNumeric:"tabular-nums"}},row.count.toLocaleString()),
+                React.createElement('td',{style:{padding:"10px 12px",borderBottom:`1px solid ${bdr}`,textAlign:"right",fontVariantNumeric:"tabular-nums"}},f.cur(row.volume)),
+                React.createElement('td',{style:{padding:"10px 12px",borderBottom:`1px solid ${bdr}`,textAlign:"right"}},
+                  React.createElement('span',{style:{fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:4,
+                    background:row.defaultRate>17?"#FEF2F2":row.defaultRate>15?"#FFFBEB":"#ECFDF5",
+                    color:row.defaultRate>17?C.red:row.defaultRate>15?C.amber:C.green}},row.defaultRate+"%")
+                ),
+                React.createElement('td',{style:{padding:"10px 12px",borderBottom:`1px solid ${bdr}`,textAlign:"right"}},
+                  React.createElement('span',{style:{fontWeight:600,color:row.avgReturn>=5?C.green:row.avgReturn>=4?C.amber:C.red}},row.avgReturn+"%")
+                ),
+                React.createElement('td',{style:{padding:"10px 12px",borderBottom:`1px solid ${bdr}`,textAlign:"center"}},
+                  React.createElement('div',{style:{width:Math.max(24,row.defaultRate*4),height:6,borderRadius:3,margin:"0 auto",
+                    background:`linear-gradient(90deg,${C.green},${row.defaultRate>16?C.red:C.amber})`}})
+                )
+              ))
+            )
+          )
+        )
+      ),
+
+      // Footer
+      React.createElement('div',{style:{textAlign:"center",padding:"24px 0",borderTop:`1px solid ${bdr}`}},
+        React.createElement('div',{style:{fontSize:11,color:C.g400}},
+          "Risk Analytics Dashboard — LendingClub 2016 Portfolio — "+f.num(DATA.kpis.totalLoans)+" loans analyzed")
+      )
+    ),
+
+    // ── Grade Modal ──
+    React.createElement(Modal,{isOpen:modal?.type==="grade",onClose:()=>setModal(null),title:"Grade "+(modal?.grade||"")+" — Detailed Breakdown"},
+      modal?.grade&&(()=>{
+        const detail=DATA.bySubGrade.filter(sg=>sg.subGrade.startsWith(modal.grade));
+        const gi=DATA.byGrade.find(g=>g.grade===modal.grade);
+        if(!gi) return null;
+        return React.createElement('div',null,
+          React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12,marginBottom:24}},
+            [{l:"Total Loans",v:f.num(gi.count)},{l:"Default Rate",v:gi.defaultRate+"%",c:C.red},{l:"Avg Return",v:gi.avgReturn+"%",c:gi.avgReturn>=0?C.green:C.red},{l:"Avg Rate",v:gi.avgRate+"%"}].map(k=>
+              React.createElement('div',{key:k.l,style:{background:C.g50,borderRadius:8,padding:16,textAlign:"center"}},
+                React.createElement('div',{style:{fontSize:11,color:C.g400,marginBottom:4}},k.l),
+                React.createElement('div',{style:{fontSize:20,fontWeight:700,color:k.c||C.g900}},k.v)
+              )
+            )
+          ),
+          React.createElement('div',{style:{height:250}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(ComposedChart,{data:detail,margin:{left:0,right:8,top:8,bottom:8}},
+                React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:C.g200,vertical:false}),
+                React.createElement(XAxis,{dataKey:"subGrade",tick:{fontSize:12,fontWeight:600},axisLine:false,tickLine:false}),
+                React.createElement(YAxis,{tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,tickFormatter:v=>v+"%"}),
+                React.createElement(Tooltip,{content:React.createElement(TT,{fmt:v=>v+"%"})}),
+                React.createElement(Bar,{dataKey:"defaultRate",name:"Default Rate",fill:C.pink,fillOpacity:0.6,radius:[4,4,0,0]}),
+                React.createElement(Line,{type:"monotone",dataKey:"avgReturn",name:"Avg Return",stroke:C.teal,strokeWidth:2.5,dot:{fill:C.teal,r:4,stroke:"white",strokeWidth:2}}),
+                React.createElement(Line,{type:"monotone",dataKey:"avgRate",name:"Int Rate",stroke:C.purple,strokeWidth:1.5,strokeDasharray:"5 5",dot:{fill:C.purple,r:3}})
+              )
+            )
+          )
+        );
+      })()
+    ),
+
+    // ── Purpose Modal ──
+    React.createElement(Modal,{isOpen:modal?.type==="purpose",onClose:()=>setModal(null),title:f.purp(modal?.purpose||"")+" — Grade Breakdown"},
+      modal?.purpose&&(()=>{
+        const detail=DATA.gradePurpose.filter(gp=>gp.purpose===modal.purpose).sort((a,b)=>a.grade.localeCompare(b.grade));
+        const pi=DATA.byPurpose.find(p=>p.purpose===modal.purpose);
+        if(!pi) return null;
+        return React.createElement('div',null,
+          React.createElement('div',{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12,marginBottom:24}},
+            [{l:"Total Loans",v:f.num(pi.count)},{l:"Default Rate",v:pi.defaultRate+"%",c:C.red},{l:"Avg Return",v:pi.avgReturn+"%",c:pi.avgReturn>=0?C.green:C.red},{l:"Volume",v:f.cur(pi.volume)}].map(k=>
+              React.createElement('div',{key:k.l,style:{background:C.g50,borderRadius:8,padding:16,textAlign:"center"}},
+                React.createElement('div',{style:{fontSize:11,color:C.g400,marginBottom:4}},k.l),
+                React.createElement('div',{style:{fontSize:20,fontWeight:700,color:k.c||C.g900}},k.v)
+              )
+            )
+          ),
+          React.createElement('div',{style:{height:250}},
+            React.createElement(ResponsiveContainer,{width:"100%",height:"100%"},
+              React.createElement(BarChart,{data:detail,margin:{left:0,right:8,top:8,bottom:8}},
+                React.createElement(CartesianGrid,{strokeDasharray:"3 3",stroke:C.g200,vertical:false}),
+                React.createElement(XAxis,{dataKey:"grade",tick:{fontSize:12,fontWeight:600},axisLine:false,tickLine:false}),
+                React.createElement(YAxis,{tick:{fontSize:11,fill:C.g400},axisLine:false,tickLine:false,tickFormatter:v=>v+"%"}),
+                React.createElement(Tooltip,{content:({active,payload})=>{
+                  if(!active||!payload?.length) return null;
+                  const d=payload[0].payload;
+                  return React.createElement('div',{style:{background:"white",border:"1px solid #E5E7EB",borderRadius:8,padding:"12px 16px",boxShadow:"0 4px 12px rgba(0,0,0,0.08)",fontSize:12}},
+                    React.createElement('div',{style:{fontWeight:600,marginBottom:4}},"Grade "+d.grade),
+                    React.createElement('div',null,"Default: ",React.createElement('b',null,d.defaultRate+"%")),
+                    React.createElement('div',null,"Loans: ",React.createElement('b',null,f.num(d.count))),
+                    React.createElement('div',null,"Volume: ",React.createElement('b',null,f.cur(d.volume)))
+                  );
+                }}),
+                React.createElement(Bar,{dataKey:"defaultRate",name:"Default Rate",radius:[4,4,0,0]},
+                  detail.map((e,i)=>React.createElement(Cell,{key:i,fill:GC[e.grade]}))
+                )
+              )
+            )
+          )
+        );
+      })()
+    )
+  );
+}
+
+ReactDOM.render(React.createElement(Dashboard), document.getElementById('root'));
+</script>
+</body>
+</html>
